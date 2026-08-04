@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-08-04T19:25:56.264Z",
+  "projects": [
+    {
+      "folder": "new-year-2025",
+      "title": "Global New Year Countdown",
+      "description": "Track up to 5 simultaneous New Year celebrations across the world's time zones."
+    },
+    {
+      "folder": "jackaroo-solo",
+      "title": "Jackaroo Solo — Puzzle Challenge",
+      "description": "A single-player marble race played with a standard deck of cards. Beat your own best score."
+    }
+  ]
+}

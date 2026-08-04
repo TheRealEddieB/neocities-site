@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eddie Nelson — Project Index</title>
+<meta name="description" content="A small catalog of browser projects — pick a card to open one.">
+<style>
+  :root{
+    --bg:#e6ebe4;
+    --panel:#d9e0d6;
+    --card:#faf9f2;
+    --card-tab:#1f7a72;
+    --ink:#1e2420;
+    --ink-dim:#57605a;
+    --card-ink:#211d15;
+    --card-ink-dim:#5b5548;
+    --accent:#1f7a72;
+    --border:#c7d0c3;
+    --shadow: 0 3px 10px rgba(30,36,32,0.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12161a;
+      --panel:#1a2024;
+      --card:#ece6d6;
+      --card-tab:#2fb3a3;
+      --ink:#e9e6da;
+      --ink-dim:#9a9d8f;
+      --card-ink:#211d15;
+      --card-ink-dim:#5b5548;
+      --accent:#3fcdbb;
+      --border:#2a3136;
+      --shadow: 0 6px 18px rgba(0,0,0,0.45);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    transition:background 0.2s ease;
+  }
+
+  header{
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    padding:48px 24px 36px;
+    text-align:center;
+  }
+  .kicker{
+    margin:0 0 6px;
+    font-family:ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size:0.78rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+  }
+  h1{
+    margin:0 0 10px;
+    font-family:Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size:clamp(1.8rem, 4vw, 2.6rem);
+    letter-spacing:0.01em;
+    text-wrap:balance;
+  }
+  .subtitle{
+    margin:0;
+    color:var(--ink-dim);
+    font-size:0.95rem;
+  }
+
+  main{
+    flex:1;
+    width:100%;
+    max-width:1040px;
+    margin:0 auto;
+    padding:40px 24px 20px;
+  }
+
+  .catalog{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));
+    gap:22px;
+  }
+
+  .card{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    background:var(--card);
+    color:var(--card-ink);
+    border-radius:3px 10px 10px 3px;
+    padding:20px 20px 18px;
+    text-decoration:none;
+    box-shadow:var(--shadow);
+    border-left:6px solid var(--card-tab);
+    position:relative;
+    transition:transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .card:hover{ transform:translateY(-4px); box-shadow:0 10px 22px rgba(0,0,0,0.18); }
+  .card:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
+
+  .card-tab{
+    font-family:ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size:0.72rem;
+    letter-spacing:0.03em;
+    color:var(--card-tab);
+    text-transform:lowercase;
+  }
+  .card-title{
+    font-family:Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size:1.28rem;
+    font-weight:700;
+    line-height:1.25;
+    text-wrap:balance;
+  }
+  .card-desc{
+    font-size:0.86rem;
+    color:var(--card-ink-dim);
+    line-height:1.45;
+  }
+  .card-cta{
+    margin-top:auto;
+    padding-top:10px;
+    font-size:0.82rem;
+    font-weight:700;
+    letter-spacing:0.02em;
+    color:var(--accent);
+  }
+  .card-cta span{ display:inline-block; transition:transform 0.15s ease; }
+  .card:hover .card-cta span{ transform:translateX(3px); }
+
+  .empty-state{
+    color:var(--ink-dim);
+    font-size:0.95rem;
+    max-width:46ch;
+    line-height:1.6;
+  }
+  .empty-state code{
+    font-family:ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    background:var(--panel);
+    padding:1px 6px;
+    border-radius:4px;
+  }
+
+  .site-footer{
+    text-align:center;
+    padding:22px 24px 40px;
+    font-size:0.76rem;
+    color:var(--ink-dim);
+    font-family:ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    letter-spacing:0.03em;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .card, .card-cta span{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="kicker">/ index /</p>
+  <h1>Eddie Nelson — Project Index</h1>
+  <p class="subtitle">Pick a card to open the project.</p>
+</header>
+
+<main>
+  <section id="catalog" class="catalog" aria-live="polite"></section>
+  <p id="emptyState" class="empty-state" hidden>
+    No projects catalogued yet — add a subfolder with its own <code>index.html</code>,
+    run <code>node build.js</code>, and redeploy.
+  </p>
+</main>
+
+<footer id="siteFooter" class="site-footer"></footer>
+
+<!-- PROJECTS_JSON_START -->
+<script id="projects-data" type="application/json">
+{
+  "generatedAt": "2026-08-04T19:25:56.264Z",
+  "projects": [
+    {
+      "folder": "new-year-2025",
+      "title": "Global New Year Countdown",
+      "description": "Track up to 5 simultaneous New Year celebrations across the world's time zones."
+    },
+    {
+      "folder": "jackaroo-solo",
+      "title": "Jackaroo Solo — Puzzle Challenge",
+      "description": "A single-player marble race played with a standard deck of cards. Beat your own best score."
+    }
+  ]
+}
+</script>
+<!-- PROJECTS_JSON_END -->
+
+<script>
+(function(){
+  "use strict";
+  var raw = document.getElementById('projects-data').textContent;
+  var data;
+  try { data = JSON.parse(raw); } catch (e) { data = { generatedAt:null, projects:[] }; }
+  var projects = data.projects || [];
+
+  var catalog = document.getElementById('catalog');
+  var empty = document.getElementById('emptyState');
+  var footer = document.getElementById('siteFooter');
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  if (projects.length === 0){
+    empty.hidden = false;
+  } else {
+    projects.forEach(function(p){
+      var card = document.createElement('a');
+      card.className = 'card';
+      card.href = p.folder + '/index.html';
+      var html = '<span class="card-tab">/' + escapeHtml(p.folder) + '/</span>' +
+        '<span class="card-title">' + escapeHtml(p.title) + '</span>';
+      if (p.description) html += '<span class="card-desc">' + escapeHtml(p.description) + '</span>';
+      html += '<span class="card-cta">Launch <span aria-hidden="true">&rarr;</span></span>';
+      card.innerHTML = html;
+      catalog.appendChild(card);
+    });
+  }
+
+  var count = projects.length;
+  var when = data.generatedAt ? new Date(data.generatedAt).toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' }) : null;
+  footer.textContent = count + (count === 1 ? ' project catalogued' : ' projects catalogued') + (when ? ' — last built ' + when : '');
+})();
+</script>
+</body>
+</html>
