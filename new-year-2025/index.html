@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global New Year Countdown</title>
+    <meta name="description" content="Track up to 5 simultaneous New Year celebrations across the world's time zones.">
+    <style>
+        :root {
+            --bg-color: #0b0e14;
+            --card-bg: #1a1f29;
+            --accent: #ffd700;
+            --text: #ffffff;
+            --text-dim: #a0a0a0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { margin-bottom: 10px; font-size: 1.5rem; text-align: center; color: var(--accent); }
+        p.subtitle { color: var(--text-dim); margin-bottom: 20px; text-align: center; font-size: 0.9rem; }
+
+        .controls {
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        select {
+            flex-grow: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #252a35;
+            color: white;
+            font-size: 1rem;
+        }
+
+        button.add-btn {
+            padding: 10px 20px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border-left: 4px solid var(--accent);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #ff4d4d;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .card-header { margin-bottom: 10px; }
+        .location-name { font-size: 1.2rem; font-weight: bold; display: block; }
+        .offset-label { font-size: 0.8rem; color: var(--text-dim); }
+
+        .timer {
+            display: flex;
+            justify-content: space-between;
+            text-align: center;
+        }
+
+        .timer-unit { flex: 1; }
+        .timer-val { font-size: 1.8rem; font-weight: 800; font-family: monospace; color: var(--accent); }
+        .timer-label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-dim); }
+
+        .celebration {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            color: #4cd137;
+            padding: 10px;
+            animation: flash 1s infinite;
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .footer { margin-top: auto; padding: 20px; font-size: 0.7rem; color: var(--text-dim); text-align: center; }
+    </style>
+</head>
+<body>
+
+    <h1>2026 Global Countdown</h1>
+    <p class="subtitle">Track up to 5 simultaneous celebrations</p>
+
+    <div class="controls">
+        <select id="zoneSelect"></select>
+        <button class="add-btn" onclick="addTimer()">ADD</button>
+    </div>
+
+    <div id="timerContainer" class="container"></div>
+
+    <div class="footer">
+        Current Date: December 31, 2025<br>
+        Built for embedded mobile browsers.
+    </div>
+
+<script>
+    // List of 38 distinct New Year's moments (UTC Offsets)
+    const timeZones = [
+        { name: "Kiribati (Line Islands)", offset: 14, label: "UTC+14" },
+        { name: "Chatham Islands (NZ)", offset: 13.75, label: "UTC+13:45" },
+        { name: "New Zealand, Fiji, Samoa", offset: 13, label: "UTC+13" },
+        { name: "Anadyr (Russia), Marshall Is.", offset: 12, label: "UTC+12" },
+        { name: "Sydney, Melbourne, Norfolk Is.", offset: 11, label: "UTC+11" },
+        { name: "Lord Howe Island", offset: 10.5, label: "UTC+10:30" },
+        { name: "Brisbane, Guam, Port Moresby", offset: 10, label: "UTC+10" },
+        { name: "Darwin (Australia)", offset: 9.5, label: "UTC+09:30" },
+        { name: "Tokyo, Seoul, Pyongyang", offset: 9, label: "UTC+09" },
+        { name: "Eucla (W. Australia)", offset: 8.75, label: "UTC+08:45" },
+        { name: "Beijing, Singapore, Manila", offset: 8, label: "UTC+08" },
+        { name: "Jakarta, Bangkok, Hanoi", offset: 7, label: "UTC+07" },
+        { name: "Myanmar, Cocos Islands", offset: 6.5, label: "UTC+06:30" },
+        { name: "Dhaka, Almaty, Omsk", offset: 6, label: "UTC+06" },
+        { name: "Kathmandu (Nepal)", offset: 5.75, label: "UTC+05:45" },
+        { name: "New Delhi, Colombo", offset: 5.5, label: "UTC+05:30" },
+        { name: "Islamabad, Tashkent, Karachi", offset: 5, label: "UTC+05" },
+        { name: "Kabul (Afghanistan)", offset: 4.5, label: "UTC+04:30" },
+        { name: "Dubai, Baku, Tbilisi", offset: 4, label: "UTC+04" },
+        { name: "Tehran (Iran)", offset: 3.5, label: "UTC+03:30" },
+        { name: "Moscow, Istanbul, Nairobi", offset: 3, label: "UTC+03" },
+        { name: "Cairo, Athens, Johannesburg", offset: 2, label: "UTC+02" },
+        { name: "Paris, Berlin, Rome, Lagos", offset: 1, label: "UTC+01" },
+        { name: "London, Dublin, Accra, Lisbon", offset: 0, label: "UTC+0" },
+        { name: "Cabo Verde, Azores", offset: -1, label: "UTC-1" },
+        { name: "South Georgia Is.", offset: -2, label: "UTC-2" },
+        { name: "Buenos Aires, Rio, Santiago", offset: -3, label: "UTC-3" },
+        { name: "Newfoundland (Canada)", offset: -3.5, label: "UTC-03:30" },
+        { name: "Caracas, La Paz, Halifax", offset: -4, label: "UTC-4" },
+        { name: "New York, Toronto, Lima", offset: -5, label: "UTC-5" },
+        { name: "Chicago, Mexico City", offset: -6, label: "UTC-6" },
+        { name: "Denver, Phoenix, Calgary", offset: -7, label: "UTC-7" },
+        { name: "Los Angeles, Vancouver", offset: -8, label: "UTC-8" },
+        { name: "Anchorage, Fairbanks", offset: -9, label: "UTC-9" },
+        { name: "Marquesas Islands", offset: -9.5, label: "UTC-09:30" },
+        { name: "Honolulu, Papeete", offset: -10, label: "UTC-10" },
+        { name: "American Samoa, Niue", offset: -11, label: "UTC-11" },
+        { name: "Baker Island (Uninhabited)", offset: -12, label: "UTC-12" }
+    ];
+
+    let activeTimers = [];
+
+    // Populate Select Dropdown
+    const select = document.getElementById('zoneSelect');
+    timeZones.forEach((tz, index) => {
+        const opt = document.createElement('option');
+        opt.value = index;
+        opt.textContent = `(${tz.label}) ${tz.name}`;
+        select.appendChild(opt);
+    });
+
+    function addTimer() {
+        if (activeTimers.length >= 5) {
+            alert("Maximum 5 countdowns reached.");
+            return;
+        }
+        const tzIndex = select.value;
+        const tz = timeZones[tzIndex];
+        
+        // Prevent duplicates
+        if (activeTimers.find(t => t.name === tz.name)) return;
+
+        activeTimers.push(tz);
+        renderTimers();
+    }
+
+    function removeTimer(name) {
+        activeTimers = activeTimers.filter(t => t.name !== name);
+        renderTimers();
+    }
+
+    function renderTimers() {
+        const container = document.getElementById('timerContainer');
+        container.innerHTML = '';
+
+        activeTimers.forEach(tz => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.id = `timer-${tz.name.replace(/\s+/g, '')}`;
+            card.innerHTML = `
+                <button class="remove-btn" onclick="removeTimer('${tz.name}')">✕</button>
+                <div class="card-header">
+                    <span class="location-name">${tz.name}</span>
+                    <span class="offset-label">${tz.label}</span>
+                </div>
+                <div class="timer" id="display-${tz.name.replace(/\s+/g, '')}">
+                    </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function updateCountdowns() {
+        const now = new Date().getTime();
+        // Target: Jan 1st, 2026 at 00:00:00
+        const targetYear = 2026;
+
+        activeTimers.forEach(tz => {
+            const display = document.getElementById(`display-${tz.name.replace(/\s+/g, '')}`);
+            if (!display) return;
+
+            // Calculate the UTC time of midnight in that specific timezone
+            // If offset is +14, midnight happens 14 hours BEFORE UTC midnight.
+            const targetUTC = Date.UTC(targetYear, 0, 1, 0, 0, 0) - (tz.offset * 60 * 60 * 1000);
+            const diff = targetUTC - now;
+
+            if (diff <= 0) {
+                display.innerHTML = `<div class="celebration">🎆 HAPPY NEW YEAR! 🎆</div>`;
+            } else {
+                const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+                display.innerHTML = `
+                    <div class="timer-unit"><div class="timer-val">${h.toString().padStart(2, '0')}</div><div class="timer-label">HRS</div></div>
+                    <div class="timer-unit"><div class="timer-val">${m.toString().padStart(2, '0')}</div><div class="timer-label">MIN</div></div>
+                    <div class="timer-unit"><div class="timer-val">${s.toString().padStart(2, '0')}</div><div class="timer-label">SEC</div></div>
+                `;
+            }
+        });
+    }
+
+    // Default: Add the first and last
+    activeTimers.push(timeZones[0]); // Kiribati
+    activeTimers.push(timeZones[timeZones.length - 1]); // Baker Island
+    renderTimers();
+
+    setInterval(updateCountdowns, 1000);
+    updateCountdowns();
+</script>
+</body>
+
+</html>

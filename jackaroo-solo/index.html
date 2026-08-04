@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jackaroo Solo — Puzzle Challenge</title>
+<meta name="description" content="A single-player marble race played with a standard deck of cards. Beat your own best score.">
+<style>
+  :root{
+    --felt:#1c4a37;
+    --felt-shadow:#123128;
+    --felt-line:#2f6b52;
+    --wood:#5c3a21;
+    --wood-dark:#432914;
+    --wood-light:#7a4f2c;
+    --parchment:#f2e8d5;
+    --parchment-dim:#e3d5b8;
+    --brass:#c9a227;
+    --brass-bright:#e6c65c;
+    --marble:#a8342a;
+    --marble-dark:#7a2019;
+    --marble-bright:#d1584a;
+    --ink:#2b2016;
+    --ink-dim:#6b5c46;
+    --cream:#f2e8d5;
+    --good:#4f7a4a;
+    --focus:#e6c65c;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, #245c46 0%, var(--felt) 45%, var(--felt-shadow) 100%);
+    color:var(--cream);
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    padding:28px 18px 60px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  .sans{ font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+
+  /* ---------- Nameplate header ---------- */
+  header.nameplate{
+    width:100%;
+    max-width:1180px;
+    background: linear-gradient(180deg, var(--wood-light) 0%, var(--wood) 55%, var(--wood-dark) 100%);
+    border:1px solid #2c1a0d;
+    border-radius:10px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+    padding:18px 26px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+  }
+  header.nameplate h1{
+    margin:0;
+    font-size:2rem;
+    letter-spacing:0.05em;
+    color:var(--brass-bright);
+    text-shadow:0 2px 0 rgba(0,0,0,0.5);
+    text-wrap:balance;
+  }
+  header.nameplate p{
+    margin:4px 0 0;
+    color:var(--parchment-dim);
+    font-size:0.85rem;
+    letter-spacing:0.03em;
+  }
+  .header-stats{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .stat-pill{
+    background:rgba(0,0,0,0.28);
+    border:1px solid rgba(230,198,92,0.35);
+    border-radius:20px;
+    padding:7px 14px;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size:0.78rem;
+    letter-spacing:0.04em;
+    color:var(--parchment);
+    display:flex;
+    gap:6px;
+    align-items:baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-pill b{ color:var(--brass-bright); font-size:0.95rem; }
+  button.woodbtn{
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background:linear-gradient(180deg, var(--brass-bright), var(--brass));
+    color:#3a2c08;
+    border:1px solid #8a6c1a;
+    border-radius:8px;
+    padding:8px 16px;
+    font-size:0.82rem;
+    font-weight:700;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    box-shadow:0 3px 0 #7a5f16, 0 4px 8px rgba(0,0,0,0.3);
+  }
+  button.woodbtn:hover{ filter:brightness(1.06); }
+  button.woodbtn:active{ transform:translateY(2px); box-shadow:0 1px 0 #7a5f16; }
+  button.woodbtn.ghost{
+    background:transparent;
+    color:var(--parchment);
+    border:1px solid rgba(242,232,213,0.4);
+    box-shadow:none;
+  }
+  button.woodbtn.ghost:active{ transform:translateY(1px); }
+  button.woodbtn:focus-visible, .card:focus-visible, .marble-hit:focus-visible{
+    outline:3px solid var(--focus);
+    outline-offset:2px;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout{
+    width:100%;
+    max-width:1180px;
+    display:grid;
+    grid-template-columns: minmax(0,1.35fr) minmax(320px, 0.95fr);
+    gap:22px;
+    align-items:start;
+  }
+  @media (max-width:900px){
+    .layout{ grid-template-columns: 1fr; }
+  }
+
+  .panel{
+    background: linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.32));
+    border:1px solid rgba(230,198,92,0.18);
+    border-radius:12px;
+    padding:16px 18px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 6px 16px rgba(0,0,0,0.25);
+  }
+
+  .board-wrap{ display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .board-svg-holder{ width:100%; max-width:600px; }
+  svg#board{ width:100%; height:auto; display:block; }
+
+  .eyebrow{
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.14em;
+    font-size:0.7rem;
+    color:var(--brass-bright);
+    margin:0 0 8px;
+  }
+
+  /* ---------- Marble tracking / status list ---------- */
+  .marble-status{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .marble-status li{
+    display:flex; align-items:center; gap:10px;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size:0.82rem; color:var(--parchment);
+    background:rgba(0,0,0,0.2);
+    border-radius:7px; padding:6px 10px;
+  }
+  .dot{ width:13px; height:13px; border-radius:50%; flex:0 0 auto;
+    background:radial-gradient(circle at 35% 30%, var(--marble-bright), var(--marble-dark));
+    border:1px solid #3d0f0a; }
+  .marble-status .state{ margin-left:auto; color:var(--parchment-dim); font-variant-numeric:tabular-nums; }
+  .jack-star{ color:var(--brass-bright); font-size:0.75rem; }
+
+  /* ---------- Action panel ---------- */
+  #actionPanel{ min-height:34px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size:0.86rem; color:var(--parchment); display:flex; flex-direction:column; gap:10px; }
+  #actionPanel .hint{ color:var(--parchment-dim); }
+  .stepper-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .stepper-btn{
+    width:30px; height:30px; border-radius:50%; border:1px solid var(--brass);
+    background:rgba(201,162,39,0.18); color:var(--brass-bright); font-size:1.1rem; cursor:pointer;
+  }
+  .stepper-btn:disabled{ opacity:0.3; cursor:not-allowed; }
+  .split-readout{ font-variant-numeric:tabular-nums; }
+  .row-btns{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* ---------- Hand of cards ---------- */
+  .hand-row{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; padding:6px 0 4px; }
+  .card{
+    width:76px; height:106px;
+    background: linear-gradient(160deg, #fffaf0, var(--parchment) 60%, var(--parchment-dim));
+    border:1px solid #c8b98f;
+    border-radius:7px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.35);
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:7px 8px;
+    cursor:pointer;
+    color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    user-select:none;
+  }
+  .card:hover{ transform:translateY(-6px); box-shadow:0 8px 16px rgba(0,0,0,0.4); }
+  .card.selected{ transform:translateY(-10px); box-shadow:0 0 0 3px var(--brass-bright), 0 8px 16px rgba(0,0,0,0.4); }
+  .card .rank{ font-size:1.2rem; font-weight:700; line-height:1; }
+  .card .suit-mid{ font-size:1.6rem; text-align:center; line-height:1; }
+  .card .rank.bottom{ align-self:flex-end; transform:rotate(180deg); }
+  .card.red{ color:var(--marble-dark); }
+  .card.black{ color:var(--ink); }
+  .card-empty-slot{ width:76px; height:106px; border:1.5px dashed rgba(242,232,213,0.25); border-radius:7px; }
+
+  /* ---------- Piles ---------- */
+  .piles-row{ display:flex; justify-content:center; gap:26px; margin-top:6px; }
+  .pile{ text-align:center; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .pile .stack{
+    width:52px; height:72px; border-radius:6px; margin:0 auto 6px;
+    background: repeating-linear-gradient(135deg, var(--wood-light), var(--wood-light) 4px, var(--wood) 4px, var(--wood) 8px);
+    border:1px solid var(--wood-dark);
+    box-shadow:0 3px 8px rgba(0,0,0,0.35);
+    position:relative;
+  }
+  .pile .stack.discard{ background:var(--parchment-dim); border:1px solid #c8b98f; }
+  .pile .count{ font-size:0.95rem; color:var(--brass-bright); font-weight:700; }
+  .pile .lbl{ font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--parchment-dim); }
+
+  /* ---------- Log ---------- */
+  #log{
+    list-style:none; margin:0; padding:0; max-height:220px; overflow-y:auto;
+    display:flex; flex-direction:column-reverse; gap:5px;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size:0.78rem; color:var(--parchment-dim);
+  }
+  #log li{ border-left:2px solid var(--brass); padding-left:8px; }
+  #log li.penalty{ border-left-color:var(--marble); color:var(--marble-bright); }
+  #log li.win{ border-left-color:var(--good); color:#a8d4a0; }
+
+  /* ---------- SVG board elements ---------- */
+  .track-dot{ fill:var(--felt-line); stroke:#0d241c; stroke-width:1; }
+  .track-dot.base{ fill:var(--brass); stroke:#5c4712; stroke-width:1.5; }
+  .safe-dot{ fill:var(--marble-dark); stroke:#3d0f0a; stroke-width:1; opacity:0.75; }
+  .hub{ fill:var(--wood-dark); stroke:var(--brass); stroke-width:2; }
+  .hub-label{ fill:var(--brass-bright); font-size:13px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing:1px; text-anchor:middle; }
+  .home-box{ fill:rgba(0,0,0,0.22); stroke:var(--brass); stroke-width:1.5; stroke-dasharray:4 4; }
+  .home-slot{ fill:rgba(242,232,213,0.06); stroke:rgba(242,232,213,0.3); stroke-width:1; stroke-dasharray:3 3; }
+  .home-label, .base-label{ fill:var(--parchment-dim); font-size:11px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing:1.5px; text-anchor:middle; text-transform:uppercase; }
+
+  .marble-g circle.body{ fill:radial-gradient(circle, var(--marble-bright), var(--marble-dark)); }
+  .marble-g .body{ fill:var(--marble); stroke:#3d0f0a; stroke-width:1.4; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+  .marble-g .num{ fill:#f8e9c8; font-size:11px; font-weight:700; text-anchor:middle; dominant-baseline:central; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; pointer-events:none; }
+  .marble-hit{ cursor:default; }
+  .marble-hit.eligible{ cursor:pointer; }
+  .marble-hit.eligible .body{ animation: pulse 1.3s ease-in-out infinite; }
+  .marble-hit.picked .body{ stroke:var(--brass-bright); stroke-width:3; }
+  @keyframes pulse{
+    0%,100%{ stroke:var(--brass-bright); stroke-width:1.4; }
+    50%{ stroke:var(--brass-bright); stroke-width:4; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .marble-hit.eligible .body{ animation:none; stroke:var(--brass-bright); stroke-width:3; }
+    .card{ transition:none; }
+  }
+
+  /* ---------- Rules modal ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(8,16,12,0.72);
+    display:none; align-items:center; justify-content:center; padding:20px; z-index:50;
+  }
+  .modal-backdrop.open{ display:flex; }
+  .modal{
+    background: linear-gradient(180deg, #fffaf0, var(--parchment));
+    color:var(--ink);
+    border-radius:12px;
+    max-width:640px; width:100%; max-height:85vh; overflow-y:auto;
+    padding:26px 28px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  .modal h2{ font-family:Georgia, serif; margin-top:0; color:var(--marble-dark); }
+  .modal table{ width:100%; border-collapse:collapse; font-size:0.86rem; margin:10px 0 18px; }
+  .modal th, .modal td{ text-align:left; padding:5px 8px; border-bottom:1px solid #d8c9a3; }
+  .modal th{ color:var(--wood-dark); text-transform:uppercase; font-size:0.68rem; letter-spacing:0.06em; }
+  .modal .tiers td:first-child{ font-variant-numeric:tabular-nums; font-weight:700; }
+  .modal .note{ background:rgba(168,52,42,0.08); border-left:3px solid var(--marble); padding:8px 12px; font-size:0.82rem; margin-top:6px; }
+  .modal-close{ position:sticky; top:0; float:right; background:var(--wood); color:var(--parchment); border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:0.85rem; }
+
+  /* ---------- Victory modal ---------- */
+  .victory{ text-align:center; }
+  .victory .rating{ font-size:2.2rem; margin:10px 0; }
+  .victory .score{ font-size:3rem; color:var(--marble-dark); font-weight:700; font-variant-numeric:tabular-nums; }
+  .victory .best{ font-size:0.85rem; color:var(--wood-dark); margin-top:4px; }
+
+  a.credit{ color:var(--parchment-dim); font-size:0.72rem; margin-top:22px; }
+</style>
+</head>
+<body>
+
+<header class="nameplate">
+  <div>
+    <h1>Jackaroo Solo</h1>
+    <p>Puzzle Challenge Mode — race four marbles home in the fewest draws.</p>
+  </div>
+  <div class="header-stats">
+    <div class="stat-pill">Cards drawn <b id="statDrawn">0</b></div>
+    <div class="stat-pill">Best score <b id="statBest">—</b></div>
+    <button class="woodbtn ghost" id="rulesBtn" type="button">Rules &amp; Scoring</button>
+    <button class="woodbtn" id="newGameBtn" type="button">New Game</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- BOARD -->
+  <div class="panel board-wrap">
+    <div class="board-svg-holder">
+      <svg id="board" viewBox="0 0 600 600" role="img" aria-label="Jackaroo solo board"></svg>
+    </div>
+    <ul class="marble-status" id="marbleStatus"></ul>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div style="display:flex; flex-direction:column; gap:16px;">
+
+    <div class="panel">
+      <p class="eyebrow">Your Hand — select a card, then tap a glowing marble</p>
+      <div class="hand-row" id="handRow"></div>
+      <div class="piles-row">
+        <div class="pile">
+          <div class="stack"></div>
+          <div class="count" id="drawCount">0</div>
+          <div class="lbl">Draw Pile</div>
+        </div>
+        <div class="pile">
+          <div class="stack discard"></div>
+          <div class="count" id="discardCount">0</div>
+          <div class="lbl">Discard Pile</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">Action</p>
+      <div id="actionPanel"><span class="hint">Select a card from your hand to begin.</span></div>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">Ledger</p>
+      <ul id="log"></ul>
+    </div>
+
+  </div>
+</div>
+
+<a class="credit sans" href="#" id="footerNote">Jackaroo Solo — a self-challenge marble race.</a>
+
+<!-- Rules modal -->
+<div class="modal-backdrop" id="rulesModal">
+  <div class="modal">
+    <button class="modal-close" id="closeRules" type="button">Close</button>
+    <h2>Card Reference</h2>
+    <table>
+      <thead><tr><th>Card</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td>Ace</td><td>Home → Base, <em>or</em> move a marble 1 or 11 steps forward</td></tr>
+        <tr><td>King</td><td>Move a marble from Home to Base</td></tr>
+        <tr><td>Queen</td><td>Move a marble 12 steps forward</td></tr>
+        <tr><td>Jack</td><td>Move any one marble exactly 1 step forward — once per marble, per game</td></tr>
+        <tr><td>10 / 9 / 8 / 6 / 3 / 2</td><td>Move a marble that many steps forward</td></tr>
+        <tr><td>7</td><td>Split 7 steps across two different marbles on the track</td></tr>
+        <tr><td>5</td><td>Move a marble 5 steps backward (reposition for a better entry)</td></tr>
+        <tr><td>4</td><td>Move a marble 4 steps backward</td></tr>
+      </tbody>
+    </table>
+    <p>A marble on Base is safe from the Jack's reposition. Backward moves stop at Base — they never enter Home. You may not play a forward card that would overshoot the Safe Zone.</p>
+    <div class="note"><strong>House rule:</strong> if a selected card has no legal move for any marble, you may discard it unplayed and draw a replacement — that draw still counts toward your score. If <em>every</em> card in your hand is unplayable at once, the app discards the whole hand and deals a fresh one automatically. This keeps the puzzle from ever getting stuck.</div>
+    <h2>Scoring</h2>
+    <p>Every card drawn counts — the initial hand of 4, every refill, and a +1 penalty each time the discard pile is reshuffled into a new draw pile. Finish all four marbles in as few draws as possible.</p>
+    <table class="tiers">
+      <thead><tr><th>Total Draws</th><th>Rating</th></tr></thead>
+      <tbody>
+        <tr><td>30 or fewer</td><td>Jackaroo Master</td></tr>
+        <tr><td>31 – 45</td><td>Solid Strategist</td></tr>
+        <tr><td>46 – 60</td><td>Getting There</td></tr>
+        <tr><td>61 or more</td><td>Try Again</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Victory modal -->
+<div class="modal-backdrop" id="victoryModal">
+  <div class="modal victory">
+    <h2>All Four Marbles Home</h2>
+    <div class="score" id="victoryScore">0</div>
+    <div class="sans" style="color:var(--wood-dark); font-size:0.8rem; letter-spacing:0.06em; text-transform:uppercase;">cards drawn</div>
+    <div class="rating" id="victoryRating">—</div>
+    <div class="best sans" id="victoryBest"></div>
+    <div class="row-btns" style="justify-content:center; margin-top:18px;">
+      <button class="woodbtn" id="playAgainBtn" type="button">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- Constants ----------------
+  var TRACK_LEN = 40;       // steps 0..39, index 0 = Base
+  var SAFE_LEN  = 4;        // steps 40..43 = safe zone
+  var FINISH    = TRACK_LEN + SAFE_LEN; // 44 = finished
+  var SIMPLE_FORWARD = { '2':2, '3':3, '6':6, '8':8, '9':9, '10':10, 'Q':12 };
+  var RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+  var SUITS = ['♠','♥','♦','♣']; // spade heart diamond club
+  var RED_SUITS = { '♥':1, '♦':1 };
+  var BEST_KEY = 'jackarooSoloBestScore';
+
+  // ---------------- Geometry ----------------
+  var CX = 300, CY = 300, RADIUS = 240;
+  function trackPoint(i){
+    var angle = (-90 + i * (360 / TRACK_LEN)) * Math.PI / 180;
+    return { x: CX + RADIUS * Math.cos(angle), y: CY + RADIUS * Math.sin(angle) };
+  }
+  var TRACK_POINTS = [];
+  for (var ti = 0; ti < TRACK_LEN; ti++) TRACK_POINTS.push(trackPoint(ti));
+
+  var SAFE_RADII = [190, 140, 90, 40];
+  var SAFE_POINTS = SAFE_RADII.map(function(r){ return { x: CX, y: CY - r }; });
+
+  var HOME_SLOTS = [ {x:44,y:44}, {x:96,y:44}, {x:44,y:96}, {x:96,y:96} ];
+  var HUB = { x: CX, y: CY };
+  var FINISH_OFFSETS = [ {x:0,y:0}, {x:14,y:-8}, {x:-14,y:-8}, {x:0,y:14} ];
+
+  // ---------------- State ----------------
+  var drawPile = [], discardPile = [], hand = [];
+  var marbles = [];
+  var totalDrawn = 0;
+  var gameOver = false;
+  var ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+  var logEntries = [];
+
+  function freshMarbles(){
+    return [0,1,2,3].map(function(id){ return { id:id, state:'home', steps:0, usedJack:false }; });
+  }
+
+  function buildDeck(){
+    var d = [];
+    RANKS.forEach(function(r){ SUITS.forEach(function(s){ d.push({ rank:r, suit:s }); }); });
+    return d;
+  }
+  function shuffle(arr){
+    for (var i = arr.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  function cardLabel(c){ return c.rank + c.suit; }
+
+  function log(msg, cls){
+    logEntries.push({ msg: msg, cls: cls || '' });
+    if (logEntries.length > 80) logEntries.shift();
+  }
+
+  // ---------------- Draw / discard ----------------
+  function drawCard(){
+    if (drawPile.length === 0){
+      if (discardPile.length === 0) return null;
+      drawPile = shuffle(discardPile);
+      discardPile = [];
+      totalDrawn++;
+      log('Draw pile emptied — discard pile reshuffled (+1 penalty draw).', 'penalty');
+    }
+    var card = drawPile.pop();
+    totalDrawn++;
+    return card;
+  }
+
+  function refillHand(){
+    while (hand.length < 4){
+      var c = drawCard();
+      if (!c) break;
+      hand.push(c);
+    }
+  }
+
+  function newGame(){
+    drawPile = shuffle(buildDeck());
+    discardPile = [];
+    hand = [];
+    marbles = freshMarbles();
+    totalDrawn = 0;
+    gameOver = false;
+    ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+    logEntries = [];
+    refillHand();
+    autoDiscardFullyDeadHand();
+    log('New game dealt. Good luck!');
+    document.getElementById('victoryModal').classList.remove('open');
+    render();
+  }
+
+  // ---------------- Movement helpers ----------------
+  function remaining(m){ return FINISH - m.steps; }
+
+  function applyForward(id, n){
+    var m = marbles[id];
+    m.steps += n;
+    var finished = false;
+    if (m.steps >= FINISH){ m.steps = FINISH; m.state = 'finished'; finished = true; }
+    return 'Marble ' + (id+1) + ' advanced ' + n + ' step' + (n===1?'':'s') +
+      (finished ? ' and reached home — finished!' : ' (step ' + m.steps + '/' + FINISH + ').');
+  }
+  function applyBackward(id, n){
+    var m = marbles[id];
+    var before = m.steps;
+    m.steps = Math.max(0, m.steps - n);
+    return 'Marble ' + (id+1) + ' fell back from step ' + before + ' to step ' + m.steps + '.';
+  }
+  function applyHomeToBase(id){
+    var m = marbles[id];
+    m.state = 'track'; m.steps = 0;
+    return 'Marble ' + (id+1) + ' left Home and took the Base.';
+  }
+  function applyJack(id){
+    var m = marbles[id];
+    m.steps += 1; m.usedJack = true;
+    var finished = false;
+    if (m.steps >= FINISH){ m.steps = FINISH; m.state = 'finished'; finished = true; }
+    return 'Marble ' + (id+1) + ' used its Jack wild for 1 step' + (finished ? ' and finished!' : '.');
+  }
+
+  // ---------------- Eligibility ----------------
+  function computeEligible(card){
+    var ids = [];
+    var rank = card.rank;
+    if (rank === 'K'){
+      marbles.forEach(function(m){ if (m.state === 'home') ids.push(m.id); });
+    } else if (rank === 'J'){
+      marbles.forEach(function(m){ if (m.state === 'track' && m.steps > 0 && !m.usedJack) ids.push(m.id); });
+    } else if (rank === '4' || rank === '5'){
+      marbles.forEach(function(m){ if (m.state === 'track' && m.steps > 0) ids.push(m.id); });
+    } else if (rank === '7'){
+      marbles.forEach(function(m){ if (m.state === 'track') ids.push(m.id); });
+    } else if (rank === 'A'){
+      marbles.forEach(function(m){
+        if (m.state === 'home') ids.push(m.id);
+        else if (m.state === 'track' && remaining(m) >= 1) ids.push(m.id);
+      });
+    } else {
+      var n = SIMPLE_FORWARD[rank];
+      marbles.forEach(function(m){ if (m.state === 'track' && remaining(m) >= n) ids.push(m.id); });
+    }
+    return ids;
+  }
+
+  function isDead(card){
+    var ids = computeEligible(card);
+    if (card.rank === '7') return ids.length < 2;
+    return ids.length === 0;
+  }
+
+  function handIsFullyDead(){
+    return hand.length === 4 && hand.every(isDead);
+  }
+
+  // If every card in hand is unplayable, discard the whole hand and deal a
+  // fresh one — repeats (bounded) in case the redraw is dead again too.
+  function autoDiscardFullyDeadHand(){
+    var guard = 0;
+    while (handIsFullyDead() && guard < 25){
+      var labels = hand.map(cardLabel).join(', ');
+      discardPile = discardPile.concat(hand);
+      hand = [];
+      refillHand();
+      log('No card in hand had a legal move — auto-discarded the hand (' + labels + ') and dealt a fresh one.');
+      guard++;
+    }
+  }
+
+  // second-pick set for the 7 split, given first id A
+  function sevenSecondOptions(idA){
+    var mA = marbles[idA];
+    var remA = remaining(mA);
+    var opts = [];
+    marbles.forEach(function(m){
+      if (m.id === idA || m.state !== 'track') return;
+      var remB = remaining(m);
+      var aMin = Math.max(1, 7 - remB);
+      var aMax = Math.min(6, remA);
+      if (aMin <= aMax) opts.push({ id:m.id, aMin:aMin, aMax:aMax });
+    });
+    return opts;
+  }
+
+  // ---------------- Turn commit ----------------
+  function commitCardPlay(logMsg, cls){
+    var card = hand[ui.selectedCardIndex];
+    hand.splice(ui.selectedCardIndex, 1);
+    discardPile.push(card);
+    log(logMsg, cls);
+    ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+    checkWin();
+    if (!gameOver){
+      refillHand();
+      autoDiscardFullyDeadHand();
+    }
+    render();
+  }
+
+  function commitSeven(idA, aAmt, idB, bAmt){
+    var msg1 = applyForward(idA, aAmt);
+    var msg2 = applyForward(idB, bAmt);
+    var card = hand[ui.selectedCardIndex];
+    hand.splice(ui.selectedCardIndex, 1);
+    discardPile.push(card);
+    log('Played 7 (split ' + aAmt + '+' + bAmt + '): ' + msg1 + ' ' + msg2);
+    ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+    checkWin();
+    if (!gameOver){
+      refillHand();
+      autoDiscardFullyDeadHand();
+    }
+    render();
+  }
+
+  function discardDead(){
+    var card = hand[ui.selectedCardIndex];
+    hand.splice(ui.selectedCardIndex, 1);
+    discardPile.push(card);
+    log('Discarded unplayable ' + cardLabel(card) + ' — no legal moves.');
+    refillHand();
+    autoDiscardFullyDeadHand();
+    ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+    render();
+  }
+
+  function checkWin(){
+    var allDone = marbles.every(function(m){ return m.state === 'finished'; });
+    if (!allDone) return;
+    gameOver = true;
+    log('All four marbles are home! Final score: ' + totalDrawn + ' draws.', 'win');
+    var best = Number(localStorage.getItem(BEST_KEY));
+    var isNewBest = !best || totalDrawn < best;
+    if (isNewBest) localStorage.setItem(BEST_KEY, String(totalDrawn));
+    showVictory(isNewBest, best);
+  }
+
+  function tierFor(score){
+    if (score <= 30) return 'Jackaroo Master';
+    if (score <= 45) return 'Solid Strategist';
+    if (score <= 60) return 'Getting There';
+    return 'Try Again';
+  }
+
+  function showVictory(isNewBest, prevBest){
+    document.getElementById('victoryScore').textContent = totalDrawn;
+    document.getElementById('victoryRating').textContent = tierFor(totalDrawn);
+    var bestEl = document.getElementById('victoryBest');
+    if (isNewBest) bestEl.textContent = prevBest ? ('New best! Previous best was ' + prevBest + '.') : 'That’s your first recorded best score.';
+    else bestEl.textContent = 'Your best remains ' + prevBest + '.';
+    document.getElementById('victoryModal').classList.add('open');
+  }
+
+  // ---------------- Click handling ----------------
+  function selectCard(idx){
+    if (gameOver) return;
+    if (ui.selectedCardIndex === idx){
+      ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+    } else {
+      ui = { selectedCardIndex:idx, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+    }
+    render();
+  }
+
+  function currentCard(){
+    return ui.selectedCardIndex === null ? null : hand[ui.selectedCardIndex];
+  }
+
+  function onMarbleClick(id){
+    if (gameOver) return;
+    var card = currentCard();
+    if (!card) return;
+    var rank = card.rank;
+
+    if (rank === '7'){
+      if (ui.sevenPicks.length === 0){
+        var firstIds = computeEligible(card);
+        if (firstIds.indexOf(id) === -1) return;
+        var opts = sevenSecondOptions(id);
+        if (opts.length === 0) return; // shouldn't happen if not dead
+        ui.sevenPicks = [id];
+        var opt0 = opts[0];
+        ui.sevenAmountA = Math.min(Math.max(4, opt0.aMin), opt0.aMax);
+        render();
+        return;
+      }
+      if (ui.sevenPicks.length === 1){
+        if (id === ui.sevenPicks[0]) return;
+        var opts2 = sevenSecondOptions(ui.sevenPicks[0]);
+        var match = null;
+        for (var i=0;i<opts2.length;i++){ if (opts2[i].id === id) { match = opts2[i]; break; } }
+        if (!match) return;
+        ui.sevenPicks = [ui.sevenPicks[0], id];
+        ui.sevenAmountA = Math.min(Math.max(ui.sevenAmountA || 4, match.aMin), match.aMax);
+        render();
+        return;
+      }
+      return; // both already picked, use panel buttons
+    }
+
+    var eligible = computeEligible(card);
+    if (eligible.indexOf(id) === -1) return;
+
+    if (rank === 'K'){
+      commitCardPlay('Played K: ' + applyHomeToBase(id));
+      return;
+    }
+    if (rank === 'J'){
+      commitCardPlay('Played J: ' + applyJack(id));
+      return;
+    }
+    if (rank === '4'){
+      commitCardPlay('Played 4: ' + applyBackward(id, 4));
+      return;
+    }
+    if (rank === '5'){
+      commitCardPlay('Played 5: ' + applyBackward(id, 5));
+      return;
+    }
+    if (rank === 'A'){
+      var m = marbles[id];
+      if (m.state === 'home'){
+        commitCardPlay('Played A: ' + applyHomeToBase(id));
+        return;
+      }
+      var rem = remaining(m);
+      var can1 = rem >= 1, can11 = rem >= 11;
+      if (can1 && can11){
+        ui.acePendingId = id;
+        render();
+        return;
+      }
+      var val = can11 ? 11 : 1;
+      commitCardPlay('Played A: ' + applyForward(id, val));
+      return;
+    }
+    // simple forward ranks
+    var n = SIMPLE_FORWARD[rank];
+    commitCardPlay('Played ' + rank + ': ' + applyForward(id, n));
+  }
+
+  function onAceChoice(value){
+    var id = ui.acePendingId;
+    if (id === null) return;
+    commitCardPlay('Played A: ' + applyForward(id, value));
+  }
+
+  function onSevenStep(delta){
+    if (ui.sevenPicks.length !== 2) return;
+    var opts = sevenSecondOptions(ui.sevenPicks[0]);
+    var match = null;
+    for (var i=0;i<opts.length;i++){ if (opts[i].id === ui.sevenPicks[1]) { match = opts[i]; break; } }
+    if (!match) return;
+    var next = (ui.sevenAmountA || match.aMin) + delta;
+    ui.sevenAmountA = Math.min(Math.max(next, match.aMin), match.aMax);
+    render();
+  }
+
+  function onSevenApply(){
+    if (ui.sevenPicks.length !== 2) return;
+    var idA = ui.sevenPicks[0], idB = ui.sevenPicks[1];
+    var a = ui.sevenAmountA, b = 7 - a;
+    commitSeven(idA, a, idB, b);
+  }
+
+  function onSevenCancel(){
+    ui.sevenPicks = []; ui.sevenAmountA = null;
+    render();
+  }
+
+  // ---------------- Rendering ----------------
+  var svgNS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs){
+    var el = document.createElementNS(svgNS, tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  var boardInited = false;
+  var marbleLayer = null;
+
+  function initBoardStatic(){
+    var svg = document.getElementById('board');
+    svg.innerHTML = '';
+
+    svg.appendChild(svgEl('circle', { cx:CX, cy:CY, r:RADIUS, fill:'none', stroke:'#2f6b52', 'stroke-width':2, 'stroke-dasharray':'2 7', opacity:0.6 }));
+    svg.appendChild(svgEl('line', { x1:CX, y1:60, x2:CX, y2:CY, stroke:'#7a2019', 'stroke-width':2, 'stroke-dasharray':'2 6', opacity:0.55 }));
+
+    TRACK_POINTS.forEach(function(p, i){
+      var cls = i === 0 ? 'track-dot base' : 'track-dot';
+      var c = svgEl('circle', { cx:p.x, cy:p.y, r: i===0?9:5.5, class:cls });
+      var title = svgEl('title', {});
+      title.textContent = i === 0 ? 'Base' : ('Track space ' + i);
+      c.appendChild(title);
+      svg.appendChild(c);
+    });
+
+    SAFE_POINTS.forEach(function(p, j){
+      var c = svgEl('circle', { cx:p.x, cy:p.y, r:7, class:'safe-dot' });
+      var title = svgEl('title', {});
+      title.textContent = 'Safe Zone space ' + (j+1);
+      c.appendChild(title);
+      svg.appendChild(c);
+    });
+
+    svg.appendChild(svgEl('circle', { cx:HUB.x, cy:HUB.y, r:34, class:'hub' }));
+    var hubLbl = svgEl('text', { x:HUB.x, y:HUB.y+4, class:'hub-label' });
+    hubLbl.textContent = 'HOME';
+    svg.appendChild(hubLbl);
+
+    var baseLbl = svgEl('text', { x:CX, y:38, class:'base-label' });
+    baseLbl.textContent = 'Base';
+    svg.appendChild(baseLbl);
+
+    svg.appendChild(svgEl('rect', { x:16, y:16, width:108, height:108, rx:10, class:'home-box' }));
+    var homeLbl = svgEl('text', { x:70, y:141, class:'home-label' });
+    homeLbl.textContent = 'Home';
+    svg.appendChild(homeLbl);
+    HOME_SLOTS.forEach(function(p){
+      svg.appendChild(svgEl('circle', { cx:p.x, cy:p.y, r:17, class:'home-slot' }));
+    });
+
+    marbleLayer = svgEl('g', { id:'marbleLayer' });
+    svg.appendChild(marbleLayer);
+    boardInited = true;
+  }
+
+  function posForMarble(m){
+    if (m.state === 'home') return HOME_SLOTS[m.id];
+    if (m.state === 'finished'){
+      var off = FINISH_OFFSETS[m.id];
+      return { x: HUB.x + off.x, y: HUB.y + off.y };
+    }
+    if (m.steps < TRACK_LEN) return TRACK_POINTS[m.steps];
+    return SAFE_POINTS[m.steps - TRACK_LEN];
+  }
+
+  function renderMarbles(eligibleIds){
+    marbleLayer.innerHTML = '';
+
+    // group by rounded position for a light stacking offset
+    var groups = {};
+    marbles.forEach(function(m){
+      var p = posForMarble(m);
+      var key = Math.round(p.x) + ':' + Math.round(p.y);
+      (groups[key] = groups[key] || []).push(m.id);
+    });
+    var STACK_R = 13; // separation radius when 2+ marbles share a space — keeps hit-circles from overlapping
+
+    marbles.forEach(function(m){
+      var p = posForMarble(m);
+      var key = Math.round(p.x) + ':' + Math.round(p.y);
+      var group = groups[key];
+      var idxInGroup = group.indexOf(m.id);
+      var stacked = group.length > 1;
+      var off = {x:0,y:0};
+      if (stacked){
+        var ang = (idxInGroup * (360 / group.length) - 90) * Math.PI / 180;
+        off = { x: STACK_R * Math.cos(ang), y: STACK_R * Math.sin(ang) };
+      }
+      var x = p.x + off.x, y = p.y + off.y;
+
+      var isEligible = eligibleIds.indexOf(m.id) !== -1;
+      var isPicked = ui.sevenPicks.indexOf(m.id) !== -1 || ui.acePendingId === m.id;
+      var cls = 'marble-hit' + (isEligible ? ' eligible' : '') + (isPicked ? ' picked' : '');
+
+      var g = svgEl('g', { class:'marble-g ' + cls, transform:'translate(' + x + ',' + y + ')', tabindex: isEligible ? '0' : '-1' });
+      var body = svgEl('circle', { class:'body', r: stacked ? 8 : 15 });
+      var num = svgEl('text', { class:'num', y:1, style:'font-size:' + (stacked ? 8 : 11) + 'px' });
+      num.textContent = String(m.id + 1);
+      g.appendChild(body);
+      g.appendChild(num);
+      if (m.usedJack){
+        var star = svgEl('text', { x:11, y:-10, 'font-size':10, fill:'#e6c65c' });
+        star.textContent = '★';
+        g.appendChild(star);
+      }
+      var title = svgEl('title', {});
+      title.textContent = 'Marble ' + (m.id+1) + ' — ' + describeMarble(m);
+      g.appendChild(title);
+
+      if (isEligible){
+        g.addEventListener('click', function(id){ return function(){ onMarbleClick(id); }; }(m.id));
+        g.addEventListener('keydown', function(id){ return function(e){ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); onMarbleClick(id); } }; }(m.id));
+      }
+      marbleLayer.appendChild(g);
+    });
+  }
+
+  function describeMarble(m){
+    if (m.state === 'home') return 'in Home';
+    if (m.state === 'finished') return 'finished';
+    if (m.steps === 0) return 'on Base';
+    if (m.steps < TRACK_LEN) return 'track space ' + m.steps + ' (' + remaining(m) + ' to go)';
+    return 'Safe Zone space ' + (m.steps - TRACK_LEN + 1) + ' (' + remaining(m) + ' to go)';
+  }
+
+  function currentEligibleIds(){
+    var card = currentCard();
+    if (!card) return [];
+    if (card.rank === '7'){
+      if (ui.sevenPicks.length === 0) return computeEligible(card).length >= 2 ? computeEligible(card) : [];
+      if (ui.sevenPicks.length === 1) return sevenSecondOptions(ui.sevenPicks[0]).map(function(o){ return o.id; });
+      return [];
+    }
+    if (ui.acePendingId !== null) return [];
+    return computeEligible(card);
+  }
+
+  function renderHand(){
+    var row = document.getElementById('handRow');
+    row.innerHTML = '';
+    for (var i = 0; i < 4; i++){
+      if (i >= hand.length){
+        var slot = document.createElement('div');
+        slot.className = 'card-empty-slot';
+        row.appendChild(slot);
+        continue;
+      }
+      var c = hand[i];
+      var div = document.createElement('div');
+      div.className = 'card ' + (RED_SUITS[c.suit] ? 'red' : 'black') + (ui.selectedCardIndex === i ? ' selected' : '');
+      div.tabIndex = 0;
+      div.setAttribute('role', 'button');
+      div.setAttribute('aria-label', cardLabel(c));
+      div.innerHTML =
+        '<span class="rank">' + c.rank + c.suit + '</span>' +
+        '<span class="suit-mid">' + c.suit + '</span>' +
+        '<span class="rank bottom">' + c.rank + c.suit + '</span>';
+      (function(idx){
+        div.addEventListener('click', function(){ selectCard(idx); });
+        div.addEventListener('keydown', function(e){ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); selectCard(idx); } });
+      })(i);
+      row.appendChild(div);
+    }
+    document.getElementById('drawCount').textContent = String(drawPile.length);
+    document.getElementById('discardCount').textContent = String(discardPile.length);
+  }
+
+  function renderMarbleStatus(){
+    var ul = document.getElementById('marbleStatus');
+    ul.innerHTML = '';
+    marbles.forEach(function(m){
+      var li = document.createElement('li');
+      var starHtml = m.usedJack ? ' <span class="jack-star">★</span>' : '';
+      li.innerHTML = '<span class="dot"></span>Marble ' + (m.id+1) + starHtml +
+        '<span class="state">' + describeMarble(m) + '</span>';
+      ul.appendChild(li);
+    });
+  }
+
+  function renderActionPanel(){
+    var panel = document.getElementById('actionPanel');
+    panel.innerHTML = '';
+    var card = currentCard();
+
+    if (gameOver){
+      panel.innerHTML = '<span class="hint">Game complete — start a new game to play again.</span>';
+      return;
+    }
+
+    if (!card){
+      panel.innerHTML = '<span class="hint">Select a card from your hand to begin.</span>';
+      return;
+    }
+
+    if (card.rank === '7' && ui.sevenPicks.length === 2){
+      var idA = ui.sevenPicks[0], idB = ui.sevenPicks[1];
+      var opts = sevenSecondOptions(idA);
+      var match = null;
+      for (var i=0;i<opts.length;i++){ if (opts[i].id === idB) { match = opts[i]; break; } }
+      var a = ui.sevenAmountA, b = 7 - a;
+      var hint = document.createElement('div');
+      hint.className = 'hint';
+      hint.textContent = 'Splitting 7 between Marble ' + (idA+1) + ' and Marble ' + (idB+1) + ':';
+      panel.appendChild(hint);
+
+      var row = document.createElement('div');
+      row.className = 'stepper-row';
+      var minus = document.createElement('button');
+      minus.className = 'stepper-btn'; minus.textContent = '−'; minus.type = 'button';
+      minus.disabled = !match || a <= match.aMin;
+      minus.addEventListener('click', function(){ onSevenStep(-1); });
+      var plus = document.createElement('button');
+      plus.className = 'stepper-btn'; plus.textContent = '+'; plus.type = 'button';
+      plus.disabled = !match || a >= match.aMax;
+      plus.addEventListener('click', function(){ onSevenStep(1); });
+      var readout = document.createElement('span');
+      readout.className = 'split-readout sans';
+      readout.textContent = 'Marble ' + (idA+1) + ': +' + a + '   •   Marble ' + (idB+1) + ': +' + b;
+      row.appendChild(minus); row.appendChild(readout); row.appendChild(plus);
+      panel.appendChild(row);
+
+      var btnRow = document.createElement('div');
+      btnRow.className = 'row-btns';
+      var applyBtn = document.createElement('button');
+      applyBtn.className = 'woodbtn'; applyBtn.type = 'button'; applyBtn.textContent = 'Apply Split';
+      applyBtn.addEventListener('click', onSevenApply);
+      var cancelBtn = document.createElement('button');
+      cancelBtn.className = 'woodbtn ghost'; cancelBtn.type = 'button'; cancelBtn.textContent = 'Choose Different Marbles';
+      cancelBtn.addEventListener('click', onSevenCancel);
+      btnRow.appendChild(applyBtn); btnRow.appendChild(cancelBtn);
+      panel.appendChild(btnRow);
+      return;
+    }
+
+    if (card.rank === '7' && ui.sevenPicks.length === 1){
+      panel.innerHTML = '<span class="hint">First marble chosen. Now tap a second glowing marble to split the 7 with.</span>';
+      return;
+    }
+
+    if (ui.acePendingId !== null){
+      var m = marbles[ui.acePendingId];
+      var hint2 = document.createElement('div');
+      hint2.className = 'hint';
+      hint2.textContent = 'Ace on Marble ' + (ui.acePendingId+1) + ' — move it forward by:';
+      panel.appendChild(hint2);
+      var btnRow2 = document.createElement('div');
+      btnRow2.className = 'row-btns';
+      var b1 = document.createElement('button');
+      b1.className = 'woodbtn'; b1.type='button'; b1.textContent = '1 step';
+      b1.addEventListener('click', function(){ onAceChoice(1); });
+      var b11 = document.createElement('button');
+      b11.className = 'woodbtn'; b11.type='button'; b11.textContent = '11 steps';
+      b11.addEventListener('click', function(){ onAceChoice(11); });
+      var cancel2 = document.createElement('button');
+      cancel2.className = 'woodbtn ghost'; cancel2.type='button'; cancel2.textContent = 'Cancel';
+      cancel2.addEventListener('click', function(){ ui.acePendingId = null; render(); });
+      btnRow2.appendChild(b1); btnRow2.appendChild(b11); btnRow2.appendChild(cancel2);
+      panel.appendChild(btnRow2);
+      return;
+    }
+
+    if (isDead(card)){
+      var deadHint = document.createElement('div');
+      deadHint.className = 'hint';
+      deadHint.textContent = cardLabel(card) + ' has no legal move right now.';
+      panel.appendChild(deadHint);
+      var discardBtn = document.createElement('button');
+      discardBtn.className = 'woodbtn'; discardBtn.type = 'button';
+      discardBtn.textContent = 'Discard ' + cardLabel(card) + ' (no legal moves)';
+      discardBtn.addEventListener('click', discardDead);
+      panel.appendChild(discardBtn);
+      return;
+    }
+
+    var hint3 = document.createElement('span');
+    hint3.className = 'hint';
+    hint3.textContent = cardLabel(card) + ' selected — tap a glowing marble on the board to play it.';
+    panel.appendChild(hint3);
+  }
+
+  function renderLog(){
+    var ul = document.getElementById('log');
+    ul.innerHTML = '';
+    logEntries.slice(-40).forEach(function(entry){
+      var li = document.createElement('li');
+      if (entry.cls) li.className = entry.cls;
+      li.textContent = entry.msg;
+      ul.appendChild(li);
+    });
+  }
+
+  function renderHeader(){
+    document.getElementById('statDrawn').textContent = String(totalDrawn);
+    var best = Number(localStorage.getItem(BEST_KEY));
+    document.getElementById('statBest').textContent = best ? String(best) : '—';
+  }
+
+  function render(){
+    if (!boardInited) initBoardStatic();
+    var eligibleIds = currentEligibleIds();
+    renderMarbles(eligibleIds);
+    renderHand();
+    renderMarbleStatus();
+    renderActionPanel();
+    renderLog();
+    renderHeader();
+  }
+
+  // ---------------- Wire up static controls ----------------
+  document.getElementById('newGameBtn').addEventListener('click', function(){
+    if (!gameOver && (marbles.some(function(m){return m.state!=='home';}) || totalDrawn>4)){
+      if (!confirm('Start a new game? Your current progress will be lost.')) return;
+    }
+    newGame();
+  });
+  document.getElementById('playAgainBtn').addEventListener('click', function(){
+    document.getElementById('victoryModal').classList.remove('open');
+    newGame();
+  });
+  document.getElementById('rulesBtn').addEventListener('click', function(){
+    document.getElementById('rulesModal').classList.add('open');
+  });
+  document.getElementById('closeRules').addEventListener('click', function(){
+    document.getElementById('rulesModal').classList.remove('open');
+  });
+  document.getElementById('rulesModal').addEventListener('click', function(e){
+    if (e.target === this) this.classList.remove('open');
+  });
+
+  newGame();
+})();
+</script>
+</body>
+</html>
