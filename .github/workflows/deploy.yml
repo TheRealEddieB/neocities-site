@@ -1,0 +1,40 @@
+name: Deploy to Neocities
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neocities-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Stage only the actual site content — the repo root also holds
+      # README.md, build.js, and .git/.github, none of which belong on
+      # the live site.
+      - name: Stage deployable files
+        run: |
+          rm -rf _site_dist
+          mkdir _site_dist
+          cp index.html projects.json _site_dist/
+          for d in */; do
+            name="${d%/}"
+            [ "$name" = "_site_dist" ] && continue
+            cp -r "$name" "_site_dist/$name"
+          done
+
+      - name: Deploy to Neocities
+        uses: bcomnes/deploy-to-neocities@v3
+        with:
+          api_key: ${{ secrets.NEOCITIES_API_TOKEN }}
+          dist_dir: _site_dist
