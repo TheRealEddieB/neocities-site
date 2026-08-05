@@ -329,6 +329,7 @@
   <div class="header-stats">
     <div class="stat-pill">Cards drawn <b id="statDrawn">0</b></div>
     <div class="stat-pill">Best score <b id="statBest">—</b></div>
+    <button class="woodbtn ghost" id="soundToggleBtn" type="button">Sound: On</button>
     <button class="woodbtn ghost" id="rulesBtn" type="button">Rules &amp; Scoring</button>
     <button class="woodbtn" id="newGameBtn" type="button">New Game</button>
   </div>
@@ -444,13 +445,54 @@
   var BEST_KEY = 'jackarooSoloBestScore';
 
   // ---------------- Geometry ----------------
-  var CX = 300, CY = 300, RADIUS = 240;
-  function trackPoint(i){
-    var angle = (-90 + i * (360 / TRACK_LEN)) * Math.PI / 180;
-    return { x: CX + RADIUS * Math.cos(angle), y: CY + RADIUS * Math.sin(angle) };
+  // The board follows the traditional Jackaroo/Aggravation shape: a
+  // four-armed cross, rather than a plain circular loop.
+  var CX = 300, CY = 300;
+  var ARM_REACH = 240; // distance from center to each arm's outer tip
+  var ARM_HALF  = 62;  // half-width of each arm
+
+  // Corners of the cross outline, starting at the top arm's tip (Base) and
+  // walking clockwise once around the full perimeter.
+  function crossOutline(){
+    var R = ARM_REACH, w = ARM_HALF;
+    return [
+      { x:0,  y:-R }, { x:w,  y:-R }, { x:w,  y:-w }, { x:R,  y:-w },
+      { x:R,  y:w  }, { x:w,  y:w  }, { x:w,  y:R  }, { x:-w, y:R  },
+      { x:-w, y:w  }, { x:-R, y:w  }, { x:-R, y:-w }, { x:-w, y:-w },
+      { x:-w, y:-R }
+    ];
   }
-  var TRACK_POINTS = [];
-  for (var ti = 0; ti < TRACK_LEN; ti++) TRACK_POINTS.push(trackPoint(ti));
+
+  // Evenly spaces n points, by arc length, around a closed polyline.
+  function evenlySpaceAround(vertices, n){
+    var edges = [], total = 0;
+    for (var i = 0; i < vertices.length; i++){
+      var a = vertices[i], b = vertices[(i + 1) % vertices.length];
+      var len = Math.hypot(b.x - a.x, b.y - a.y);
+      edges.push({ a:a, b:b, len:len });
+      total += len;
+    }
+    var pts = [];
+    for (var k = 0; k < n; k++){
+      var target = total * (k / n);
+      var acc = 0;
+      for (var e = 0; e < edges.length; e++){
+        var edge = edges[e];
+        if (acc + edge.len >= target || e === edges.length - 1){
+          var t = edge.len ? (target - acc) / edge.len : 0;
+          pts.push({
+            x: CX + edge.a.x + (edge.b.x - edge.a.x) * t,
+            y: CY + edge.a.y + (edge.b.y - edge.a.y) * t
+          });
+          break;
+        }
+        acc += edge.len;
+      }
+    }
+    return pts;
+  }
+
+  var TRACK_POINTS = evenlySpaceAround(crossOutline(), TRACK_LEN);
 
   var SAFE_RADII = [190, 140, 90, 40];
   var SAFE_POINTS = SAFE_RADII.map(function(r){ return { x: CX, y: CY - r }; });
@@ -467,6 +509,67 @@
   var ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
   var logEntries = [];
   var lastRenderedLogCount = 0; // tracks how many entries were on screen last render, so new ones can be highlighted
+
+  // ---------------- Sound ----------------
+  var SOUND_KEY = 'jackarooSoloSoundOn';
+  var soundEnabled = localStorage.getItem(SOUND_KEY) !== 'off';
+  var audioCtx = null;
+
+  function ensureAudio(){
+    if (!audioCtx){
+      var Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return null;
+      try { audioCtx = new Ctor(); } catch (e){ return null; }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function beep(freq, duration, opts){
+    if (!soundEnabled) return;
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    opts = opts || {};
+    var t0 = ctx.currentTime + (opts.delay || 0);
+    var vol = opts.volume != null ? opts.volume : 0.1;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = opts.type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    if (opts.slideTo) osc.frequency.exponentialRampToValueAtTime(opts.slideTo, t0 + duration);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.03);
+  }
+
+  var SFX = {
+    select:     function(){ beep(620, 0.06, { type:'triangle', volume:0.09 }); },
+    deselect:   function(){ beep(420, 0.05, { type:'triangle', volume:0.07 }); },
+    click:      function(){ beep(500, 0.045, { type:'square', volume:0.06 }); },
+    move:       function(){ beep(700, 0.09, { type:'sine', volume:0.1, slideTo:920 }); },
+    backward:   function(){ beep(320, 0.14, { type:'sawtooth', volume:0.08, slideTo:170 }); },
+    homeToBase: function(){ beep(520, 0.08, { type:'triangle', volume:0.1 }); beep(780, 0.1, { type:'triangle', volume:0.1, delay:0.07 }); },
+    jack:       function(){ beep(660, 0.1, { type:'square', volume:0.08 }); },
+    finished:   function(){ beep(880, 0.18, { type:'triangle', volume:0.12, slideTo:1300 }); },
+    invalid:    function(){ beep(160, 0.16, { type:'square', volume:0.08 }); },
+    penalty:    function(){ beep(220, 0.15, { type:'sawtooth', volume:0.1 }); beep(160, 0.2, { type:'sawtooth', volume:0.1, delay:0.12 }); },
+    newGame:    function(){ beep(440, 0.08, { type:'triangle', volume:0.1 }); beep(660, 0.12, { type:'triangle', volume:0.1, delay:0.09 }); },
+    win:        function(){
+      [523.25, 659.25, 783.99, 1046.5].forEach(function(freq, i){
+        beep(freq, i === 3 ? 0.26 : 0.12, { type:'triangle', volume:0.12, delay:i * 0.12 });
+      });
+    }
+  };
+
+  function setSoundEnabled(on){
+    soundEnabled = on;
+    localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
+    var btn = document.getElementById('soundToggleBtn');
+    if (btn) btn.textContent = 'Sound: ' + (on ? 'On' : 'Off');
+  }
 
   function freshMarbles(){
     return [0,1,2,3].map(function(id){ return { id:id, state:'home', steps:0, usedJack:false }; });
@@ -500,6 +603,7 @@
       discardPile = [];
       totalDrawn++;
       log('Draw pile emptied — discard pile reshuffled (+1 penalty draw).', 'penalty');
+      SFX.penalty();
     }
     var card = drawPile.pop();
     totalDrawn++;
@@ -527,6 +631,7 @@
     refillHand();
     autoDiscardFullyDeadHand();
     log('New game dealt. Good luck!');
+    SFX.newGame();
     document.getElementById('victoryModal').classList.remove('open');
     render();
   }
@@ -539,6 +644,7 @@
     m.steps += n;
     var finished = false;
     if (m.steps >= FINISH){ m.steps = FINISH; m.state = 'finished'; finished = true; }
+    if (finished) SFX.finished(); else SFX.move();
     return 'Marble ' + (id+1) + ' advanced ' + n + ' step' + (n===1?'':'s') +
       (finished ? ' and reached home — finished!' : ' (step ' + m.steps + '/' + FINISH + ').');
   }
@@ -546,11 +652,13 @@
     var m = marbles[id];
     var before = m.steps;
     m.steps = Math.max(0, m.steps - n);
+    SFX.backward();
     return 'Marble ' + (id+1) + ' fell back from step ' + before + ' to step ' + m.steps + '.';
   }
   function applyHomeToBase(id){
     var m = marbles[id];
     m.state = 'track'; m.steps = 0;
+    SFX.homeToBase();
     return 'Marble ' + (id+1) + ' left Home and took the Base.';
   }
   function applyJack(id){
@@ -558,6 +666,7 @@
     m.steps += 1; m.usedJack = true;
     var finished = false;
     if (m.steps >= FINISH){ m.steps = FINISH; m.state = 'finished'; finished = true; }
+    if (finished) SFX.finished(); else SFX.jack();
     return 'Marble ' + (id+1) + ' used its Jack wild for 1 step' + (finished ? ' and finished!' : '.');
   }
 
@@ -605,6 +714,7 @@
       hand = [];
       refillHand();
       log('No card in hand had a legal move — auto-discarded the hand (' + labels + ') and dealt a fresh one.');
+      SFX.invalid();
       guard++;
     }
   }
@@ -660,6 +770,7 @@
     hand.splice(ui.selectedCardIndex, 1);
     discardPile.push(card);
     log('Discarded unplayable ' + cardLabel(card) + ' — no legal moves.');
+    SFX.invalid();
     refillHand();
     autoDiscardFullyDeadHand();
     ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
@@ -671,6 +782,7 @@
     if (!allDone) return;
     gameOver = true;
     log('All four marbles are home! Final score: ' + totalDrawn + ' draws.', 'win');
+    SFX.win();
     var best = Number(localStorage.getItem(BEST_KEY));
     var isNewBest = !best || totalDrawn < best;
     if (isNewBest) localStorage.setItem(BEST_KEY, String(totalDrawn));
@@ -698,8 +810,10 @@
     if (gameOver) return;
     if (ui.selectedCardIndex === idx){
       ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+      SFX.deselect();
     } else {
       ui = { selectedCardIndex:idx, sevenPicks:[], sevenAmountA:null, acePendingId:null };
+      SFX.select();
     }
     render();
   }
@@ -807,6 +921,7 @@
 
   function onSevenCancel(){
     ui.sevenPicks = []; ui.sevenAmountA = null;
+    SFX.click();
     render();
   }
 
@@ -825,8 +940,10 @@
     var svg = document.getElementById('board');
     svg.innerHTML = '';
 
-    svg.appendChild(svgEl('circle', { cx:CX, cy:CY, r:RADIUS, fill:'none', stroke:'#2f6b52', 'stroke-width':2, 'stroke-dasharray':'2 7', opacity:0.6 }));
-    svg.appendChild(svgEl('line', { x1:CX, y1:60, x2:CX, y2:CY, stroke:'#7a2019', 'stroke-width':2, 'stroke-dasharray':'2 6', opacity:0.55 }));
+    var outlinePts = crossOutline().map(function(p){ return { x: CX + p.x, y: CY + p.y }; });
+    var outlineD = 'M ' + outlinePts.map(function(p){ return p.x + ' ' + p.y; }).join(' L ') + ' Z';
+    svg.appendChild(svgEl('path', { d:outlineD, fill:'none', stroke:'#2f6b52', 'stroke-width':2, 'stroke-dasharray':'2 7', opacity:0.6 }));
+    svg.appendChild(svgEl('line', { x1:CX, y1:CY - ARM_REACH, x2:CX, y2:CY, stroke:'#7a2019', 'stroke-width':2, 'stroke-dasharray':'2 6', opacity:0.55 }));
 
     TRACK_POINTS.forEach(function(p, i){
       var cls = i === 0 ? 'track-dot base' : 'track-dot';
@@ -1019,11 +1136,11 @@
       var minus = document.createElement('button');
       minus.className = 'stepper-btn'; minus.textContent = '−'; minus.type = 'button';
       minus.disabled = !match || a <= match.aMin;
-      minus.addEventListener('click', function(){ onSevenStep(-1); });
+      minus.addEventListener('click', function(){ SFX.click(); onSevenStep(-1); });
       var plus = document.createElement('button');
       plus.className = 'stepper-btn'; plus.textContent = '+'; plus.type = 'button';
       plus.disabled = !match || a >= match.aMax;
-      plus.addEventListener('click', function(){ onSevenStep(1); });
+      plus.addEventListener('click', function(){ SFX.click(); onSevenStep(1); });
       var readout = document.createElement('span');
       readout.className = 'split-readout sans';
       readout.textContent = 'Marble ' + (idA+1) + ': +' + a + '   •   Marble ' + (idB+1) + ': +' + b;
@@ -1064,7 +1181,7 @@
       b11.addEventListener('click', function(){ onAceChoice(11); });
       var cancel2 = document.createElement('button');
       cancel2.className = 'woodbtn ghost'; cancel2.type='button'; cancel2.textContent = 'Cancel';
-      cancel2.addEventListener('click', function(){ ui.acePendingId = null; render(); });
+      cancel2.addEventListener('click', function(){ SFX.click(); ui.acePendingId = null; render(); });
       btnRow2.appendChild(b1); btnRow2.appendChild(b11); btnRow2.appendChild(cancel2);
       panel.appendChild(btnRow2);
       return;
@@ -1136,6 +1253,7 @@
 
   // ---------------- Wire up static controls ----------------
   document.getElementById('newGameBtn').addEventListener('click', function(){
+    SFX.click();
     if (!gameOver && (marbles.some(function(m){return m.state!=='home';}) || totalDrawn>4)){
       if (!confirm('Start a new game? Your current progress will be lost.')) return;
     }
@@ -1146,14 +1264,21 @@
     newGame();
   });
   document.getElementById('rulesBtn').addEventListener('click', function(){
+    SFX.click();
     document.getElementById('rulesModal').classList.add('open');
   });
   document.getElementById('closeRules').addEventListener('click', function(){
+    SFX.click();
     document.getElementById('rulesModal').classList.remove('open');
   });
   document.getElementById('rulesModal').addEventListener('click', function(e){
-    if (e.target === this) this.classList.remove('open');
+    if (e.target === this){ SFX.click(); this.classList.remove('open'); }
   });
+  document.getElementById('soundToggleBtn').addEventListener('click', function(){
+    setSoundEnabled(!soundEnabled);
+    if (soundEnabled) SFX.click();
+  });
+  setSoundEnabled(soundEnabled);
 
   newGame();
 })();
