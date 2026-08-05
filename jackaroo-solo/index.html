@@ -243,9 +243,17 @@
     font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     font-size:0.78rem; color:var(--parchment-dim);
   }
-  #log li{ border-left:2px solid var(--brass); padding-left:8px; }
+  #log li{ border-left:2px solid var(--brass); padding-left:8px; border-radius:0 4px 4px 0; transition:background-color 0.4s ease; }
   #log li.penalty{ border-left-color:var(--marble); color:var(--marble-bright); }
   #log li.win{ border-left-color:var(--good); color:#a8d4a0; }
+  #log li.latest{ border-left-width:4px; padding-left:6px; font-weight:700; color:var(--parchment); }
+  #log li.latest.penalty{ color:var(--marble-bright); }
+  #log li.latest.win{ color:#a8d4a0; }
+  #log li.flash{ animation: logFlash 1.4s ease-out; }
+  @keyframes logFlash{
+    0%{ background-color:rgba(230,198,92,0.55); }
+    100%{ background-color:transparent; }
+  }
 
   /* ---------- SVG board elements ---------- */
   .track-dot{ fill:var(--felt-line); stroke:#0d241c; stroke-width:1; }
@@ -271,6 +279,7 @@
   @media (prefers-reduced-motion: reduce){
     .marble-hit.eligible .body{ animation:none; stroke:var(--brass-bright); stroke-width:3; }
     .card{ transition:none; }
+    #log li.flash{ animation:none; background-color:rgba(230,198,92,0.35); }
   }
 
   /* ---------- Rules modal ---------- */
@@ -303,6 +312,11 @@
   .victory .best{ font-size:0.85rem; color:var(--wood-dark); margin-top:4px; }
 
   a.credit{ color:var(--parchment-dim); font-size:0.72rem; margin-top:22px; }
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
 </style>
 </head>
 <body>
@@ -353,6 +367,7 @@
     <div class="panel">
       <p class="eyebrow">Ledger</p>
       <ul id="log"></ul>
+      <div id="logAnnounce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     </div>
 
   </div>
@@ -451,6 +466,7 @@
   var gameOver = false;
   var ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
   var logEntries = [];
+  var lastRenderedLogCount = 0; // tracks how many entries were on screen last render, so new ones can be highlighted
 
   function freshMarbles(){
     return [0,1,2,3].map(function(id){ return { id:id, state:'home', steps:0, usedJack:false }; });
@@ -507,6 +523,7 @@
     gameOver = false;
     ui = { selectedCardIndex:null, sevenPicks:[], sevenAmountA:null, acePendingId:null };
     logEntries = [];
+    lastRenderedLogCount = 0;
     refillHand();
     autoDiscardFullyDeadHand();
     log('New game dealt. Good luck!');
@@ -1075,12 +1092,29 @@
   function renderLog(){
     var ul = document.getElementById('log');
     ul.innerHTML = '';
-    logEntries.slice(-40).forEach(function(entry){
+    var visible = logEntries.slice(-40);
+    var firstVisibleIndex = logEntries.length - visible.length;
+    var newMessages = [];
+    visible.forEach(function(entry, i){
       var li = document.createElement('li');
-      if (entry.cls) li.className = entry.cls;
+      var classes = entry.cls ? [entry.cls] : [];
+      var isLatest = (i === visible.length - 1);
+      var isNew = (firstVisibleIndex + i) >= lastRenderedLogCount;
+      if (isLatest) classes.push('latest');
+      if (isNew && lastRenderedLogCount > 0){
+        classes.push('flash');
+        newMessages.push(entry.msg);
+      }
+      if (classes.length) li.className = classes.join(' ');
       li.textContent = entry.msg;
       ul.appendChild(li);
     });
+    // Announce only the newly added entries so screen reader users hear what
+    // just changed, instead of the whole visible history re-reading on every move.
+    if (newMessages.length){
+      document.getElementById('logAnnounce').textContent = newMessages.join('. ');
+    }
+    lastRenderedLogCount = logEntries.length;
   }
 
   function renderHeader(){
