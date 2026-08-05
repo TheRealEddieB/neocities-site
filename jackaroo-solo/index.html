@@ -171,7 +171,21 @@
   .marble-status .state{ margin-left:auto; color:var(--parchment-dim); font-variant-numeric:tabular-nums; }
   .jack-star{ color:var(--brass-bright); font-size:0.75rem; }
 
-  /* ---------- Action panel ---------- */
+  /* ---------- Action dialog ---------- */
+  .action-dialog{
+    position:fixed; left:50%; bottom:22px; z-index:40;
+    width:calc(100% - 36px); max-width:440px;
+    background: linear-gradient(180deg, var(--wood-light) 0%, var(--wood) 55%, var(--wood-dark) 100%);
+    border:1px solid rgba(230,198,92,0.35);
+    border-radius:12px;
+    padding:14px 18px;
+    box-shadow:0 14px 34px rgba(0,0,0,0.5);
+    opacity:0; pointer-events:none;
+    transform:translate(-50%, 16px);
+    transition:opacity 0.18s ease, transform 0.18s ease;
+  }
+  .action-dialog.open{ opacity:1; pointer-events:auto; transform:translate(-50%, 0); }
+  .action-dialog .eyebrow{ margin:0 0 8px; }
   #actionPanel{ min-height:34px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size:0.86rem; color:var(--parchment); display:flex; flex-direction:column; gap:10px; }
   #actionPanel .hint{ color:var(--parchment-dim); }
   .stepper-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
@@ -337,11 +351,6 @@
     </div>
 
     <div class="panel">
-      <p class="eyebrow">Action</p>
-      <div id="actionPanel"><span class="hint">Select a card from your hand to begin.</span></div>
-    </div>
-
-    <div class="panel">
       <p class="eyebrow">Ledger</p>
       <ul id="log"></ul>
     </div>
@@ -350,6 +359,12 @@
 </div>
 
 <a class="credit sans" href="#" id="footerNote">Jackaroo Solo — a self-challenge marble race.</a>
+
+<!-- Action dialog: floating, non-blocking prompt for the player's next move -->
+<div class="action-dialog" id="actionDialog" role="status" aria-live="polite">
+  <p class="eyebrow">Action</p>
+  <div id="actionPanel"></div>
+</div>
 
 <!-- Rules modal -->
 <div class="modal-backdrop" id="rulesModal">
@@ -960,19 +975,16 @@
   }
 
   function renderActionPanel(){
+    var dialog = document.getElementById('actionDialog');
     var panel = document.getElementById('actionPanel');
     panel.innerHTML = '';
     var card = currentCard();
 
-    if (gameOver){
-      panel.innerHTML = '<span class="hint">Game complete — start a new game to play again.</span>';
+    if (gameOver || !card){
+      dialog.classList.remove('open');
       return;
     }
-
-    if (!card){
-      panel.innerHTML = '<span class="hint">Select a card from your hand to begin.</span>';
-      return;
-    }
+    dialog.classList.add('open');
 
     if (card.rank === '7' && ui.sevenPicks.length === 2){
       var idA = ui.sevenPicks[0], idB = ui.sevenPicks[1];
